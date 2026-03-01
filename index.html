@@ -1,185 +1,112 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Custom YouTube Player</title>
-  <meta charset="UTF-8">
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #121212;
-      color: white;
-      text-align: center;
-      margin: 0;
-      padding: 20px;
-    }
+<meta charset="UTF-8">
+<title>iOS Compatible YouTube Viewer</title>
 
-    input, button {
-      padding: 10px;
-      margin: 5px;
-      border-radius: 5px;
-      border: none;
-    }
+<style>
+body {
+    font-family: Arial;
+    background: #111;
+    color: white;
+    text-align: center;
+}
 
-    button {
-      cursor: pointer;
-      background: #ff0000;
-      color: white;
-    }
+input, button {
+    padding: 8px;
+    margin: 5px;
+}
 
-    #videos {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-      gap: 15px;
-      margin-top: 20px;
-    }
+#videos {
+    margin-top: 20px;
+}
 
-    .video-card {
-      background: #1f1f1f;
-      padding: 10px;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.2s;
-    }
+.video {
+    margin: 15px;
+    cursor: pointer;
+}
 
-    .video-card:hover {
-      transform: scale(1.05);
-    }
-
-    iframe {
-      margin-top: 20px;
-      border-radius: 10px;
-    }
-
-    #error {
-      color: red;
-      margin-top: 10px;
-    }
-
-    #commentsSection {
-      margin-top: 20px;
-      display: none;
-    }
-
-    .comment {
-      background: #2a2a2a;
-      padding: 8px;
-      margin: 5px;
-      border-radius: 5px;
-    }
-  </style>
+iframe {
+    margin-top: 20px;
+}
+</style>
 </head>
+
 <body>
 
-<h1>Custom YouTube Viewer</h1>
+<h2>YouTube Viewer (iOS 6+ Compatible)</h2>
 
-<input type="text" id="apiKey" placeholder="Paste YouTube API Key Here" size="50"><br>
-
-<input type="text" id="searchQuery" placeholder="Search videos...">
+<input type="text" id="apiKey" placeholder="Enter YouTube API Key">
+<br>
+<input type="text" id="searchQuery" placeholder="Search videos">
 <button onclick="searchVideos()">Search</button>
 
-<div id="error"></div>
 <div id="videos"></div>
 <div id="player"></div>
 
-<div id="commentsSection">
-  <h3>Website Comments</h3>
-  <input type="text" id="commentInput" placeholder="Write a comment...">
-  <button onclick="addComment()">Post</button>
-  <div id="comments"></div>
-</div>
-
 <script>
-let currentVideoId = "";
+var currentVideoId = "";
 
 function searchVideos() {
-  const apiKey = document.getElementById("apiKey").value.trim();
-  const query = document.getElementById("searchQuery").value.trim();
-  const errorDiv = document.getElementById("error");
+    var apiKey = document.getElementById("apiKey").value;
+    var query = document.getElementById("searchQuery").value;
 
-  if (!apiKey || !query) {
-    errorDiv.innerText = "Please enter API key and search query.";
-    return;
-  }
-
-  errorDiv.innerText = "";
-  document.getElementById("videos").innerHTML = "Loading...";
-
-  fetch(`https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q=${encodeURIComponent(query)}&key=${apiKey}`)
-    .then(res => res.json())
-    .then(data => {
-      if (data.error) {
-        errorDiv.innerText = "API Error: " + data.error.message;
+    if (!apiKey || !query) {
+        alert("Enter API key and search query.");
         return;
-      }
+    }
 
-      const videosDiv = document.getElementById("videos");
-      videosDiv.innerHTML = "";
+    var url = "https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=6&q="
+        + encodeURIComponent(query) + "&key=" + apiKey;
 
-      if (!data.items.length) {
-        videosDiv.innerHTML = "No embeddable videos found.";
+    var xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            var data = JSON.parse(xhr.responseText);
+            displayVideos(data.items);
+        }
+    };
+
+    xhr.send();
+}
+
+function displayVideos(items) {
+    var videosDiv = document.getElementById("videos");
+    videosDiv.innerHTML = "";
+
+    if (!items) {
+        videosDiv.innerHTML = "No videos found.";
         return;
-      }
+    }
 
-      data.items.forEach(item => {
-        const videoCard = document.createElement("div");
-        videoCard.className = "video-card";
-        videoCard.innerHTML = `
-          <img src="${item.snippet.thumbnails.medium.url}" width="100%">
-          <p>${item.snippet.title}</p>
-        `;
-        videoCard.onclick = () => playVideo(item.id.videoId);
-        videosDiv.appendChild(videoCard);
-      });
-    })
-    .catch(err => {
-      errorDiv.innerText = "Network error. Make sure you're running on localhost.";
-    });
+    for (var i = 0; i < items.length; i++) {
+        var videoId = items[i].id.videoId;
+        var title = items[i].snippet.title;
+        var thumb = items[i].snippet.thumbnails.medium.url;
+
+        var div = document.createElement("div");
+        div.className = "video";
+        div.innerHTML = "<img src='" + thumb + "' width='250'><br>" + title;
+
+        div.setAttribute("data-id", videoId);
+        div.onclick = function () {
+            playVideo(this.getAttribute("data-id"));
+        };
+
+        videosDiv.appendChild(div);
+    }
 }
 
 function playVideo(videoId) {
-  currentVideoId = videoId;
+    currentVideoId = videoId;
 
-  document.getElementById("player").innerHTML = `
-    <iframe 
-      width="800" 
-      height="450"
-      src="https://www.youtube.com/embed/${videoId}?rel=0&modestbranding=1"
-      title="YouTube video player"
-      frameborder="0"
-      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-      allowfullscreen>
-    </iframe>
-  `;
-
-  document.getElementById("commentsSection").style.display = "block";
-  loadComments();
-}
-
-function addComment() {
-  const input = document.getElementById("commentInput");
-  const comment = input.value.trim();
-  if (!comment) return;
-
-  let comments = JSON.parse(localStorage.getItem(currentVideoId)) || [];
-  comments.push(comment);
-  localStorage.setItem(currentVideoId, JSON.stringify(comments));
-
-  input.value = "";
-  loadComments();
-}
-
-function loadComments() {
-  const commentsDiv = document.getElementById("comments");
-  commentsDiv.innerHTML = "";
-
-  let comments = JSON.parse(localStorage.getItem(currentVideoId)) || [];
-
-  comments.forEach(c => {
-    const div = document.createElement("div");
-    div.className = "comment";
-    div.innerText = c;
-    commentsDiv.appendChild(div);
-  });
+    var player = document.getElementById("player");
+    player.innerHTML =
+        "<iframe width='300' height='200' " +
+        "src='https://www.youtube.com/embed/" + videoId + "?playsinline=1' " +
+        "frameborder='0' allowfullscreen></iframe>";
 }
 </script>
 
